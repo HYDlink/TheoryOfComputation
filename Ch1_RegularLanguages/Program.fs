@@ -24,39 +24,79 @@ type DFA<'State, 'Input> =
       StartState: 'State
       AcceptStates: 'State list }
 
-type FiniteAutomataType = DFA | NFA
+type FiniteAutomataType =
+    | DFA
+    | NFA
 
-type StateParam<'S> = State of 'S | StateList of 'S list
+type StateParam<'S> =
+    | State of 'S
+    | StateList of 'S list
+
+module StateParam =
+    let checkState p s =
+        match p with
+        | State se -> se = s
+        | StateList l -> l.Contains s
+
+[<Literal>]
+let Epsilon: char = '\000'
 
 module FA =
     let isDFA dfa =
-        let FiniteAutomataType b =
-            if b = true then
-                DFA
-            else
-                NFA
-        
+        let FiniteAutomataType b = if b = true then DFA else NFA
+
         match dfa.Rules with
         | RuleList list ->
+            List.exists (fun (_, i, _) -> i = Epsilon) list
+            ||
             List.distinctBy (fun (s, i, r) -> (s, i)) list
             |> List.length
             |> (=) list.Length
-            // |> FiniteAutomataType
+        // |> FiniteAutomataType
         | _ -> failwith "todo"
-    
+
+
+    /// get rules if state match and input is Epsilon,
+    /// add to new states, get new matchedRules,
+    /// check again
+    /// <param name="exceptStates">Should contain s</param>
+    let rec getRule (li: RuleList<'S, char>) (innerState: 'S) (exceptStates: 'S list) : RuleList<'S, char> =
+        let matchedRules =
+            List.filter (fun (s, i, _) -> innerState = s) li
+
+        let epsilonRules =
+            List.filter (fun (_, i, _) -> i = Epsilon) matchedRules
+
+        let extendStates: 'S list =
+            List.map (fun (_, _, r) -> r) epsilonRules
+            |> List.except exceptStates
+
+        let validRules =
+            List.except epsilonRules matchedRules
+
+        if extendStates.IsEmpty then
+            validRules
+        else
+            let nextRules =
+                List.map (fun s -> getRule li s (s :: exceptStates)) extendStates
+                |> List.concat
+
+            validRules @ nextRules
+
     let runNfaRule rule (state) input =
-        let checkState s =
-            match state with
-            | State se -> se = s
-            | StateList l -> l.Contains s
         let (RuleList li) = rule
-        List.map (fun (s, i, r) ->
-            if checkState s && input = i then
-                Some r
-            else
-                None) li
-        |> List.choose id
-    
+
+        let rules =
+            match state with
+            | StateList stateList ->
+                List.map (fun s -> getRule li s [ s ]) stateList
+                |> List.concat
+            | State s -> getRule li s [ s ]
+
+        List.filter (fun (_, i, _) -> i = input) rules
+        |> List.map (fun (_, i, r) -> r)
+
+
     let rec runNfaAt (dfa: DFA<'State, 'Input>) (curState: StateParam<'State>) (input: 'Input list) : 'State option =
         if input.IsEmpty then
             let getAccepted s =
@@ -64,6 +104,7 @@ module FA =
                     Some s
                 else
                     None
+
             let extract o =
                 match o with
                 | Some v -> v
@@ -71,17 +112,23 @@ module FA =
 
             match curState with
             | State s -> getAccepted s
-            | StateList l -> List.map getAccepted l |> List.tryFind Option.isSome |> extract
-                
+            | StateList l ->
+                List.map getAccepted l
+                |> List.tryFind Option.isSome
+                |> extract
+
         else
             let nextStates =
                 runNfaRule dfa.Rules curState (List.head input)
-            
+
             if nextStates.IsEmpty then
                 None
             else
                 runNfaAt dfa (StateList nextStates) (List.tail input)
-        
+    
+    let rec runNFA nfa input =
+        runNfaAt nfa (State nfa.StartState) input
+
 let runDfaRule rule state input =
     match rule with
     | RuleFun func -> func state input
@@ -115,10 +162,13 @@ let rec runDfaAt (dfa: DFA<'State, 'Input>) (curState: 'State) (input: 'Input li
 
 let runDfa dfa input = runDfaAt dfa dfa.StartState input
 
-let exportGraph (dfa:DFA<'S, 'I>) name =
+let exportGraph (dfa: DFA<'S, 'I>) name =
     let graph = DotGraph(name, true)
+
     let state2node state =
-        let node = DotNode(state.ToString(), Shape=DotNodeShapeAttribute(DotNodeShape.Circle))
+        let node =
+            DotNode(state.ToString(), Shape = DotNodeShapeAttribute(DotNodeShape.Circle))
+
         if List.contains state dfa.AcceptStates then
             node.SetCustomAttribute("peripheries", "2")
         else
@@ -127,36 +177,38 @@ let exportGraph (dfa:DFA<'S, 'I>) name =
     List.map state2node dfa.States
     |> Enumerable.Cast
     |> graph.Elements.AddRange
-    
+
     match dfa.Rules with
     | RuleList ruleList ->
-        List.map (fun (s, i, r) ->
-            DotEdge(s.ToString(), r.ToString(), Label = i.ToString())) ruleList
+        List.map (fun (s, i, r) -> DotEdge(s.ToString(), r.ToString(), Label = i.ToString())) ruleList
         |> Enumerable.Cast
         |> graph.Elements.AddRange
     | _ -> failwith "Not support Rule func"
-    
+
     graph
-    // let compiled = DotCompiler(graph).Compile()
-    // File.WriteAllText($"{name}.dot", compiled) 
+// let compiled = DotCompiler(graph).Compile()
+// File.WriteAllText($"{name}.dot", compiled)
 
 let compileGraphToSvg graph name (format) =
     let compiled = DotCompiler(graph).Compile()
     let dot_file = $"{name}.dot"
     let bat_file = $"{name}.bat"
     let output_file = $"{name}.{format}"
-    
-    File.WriteAllText(dot_file, compiled) 
-    let bat = $"dot -T{format} {dot_file} > {output_file}"
+
+    File.WriteAllText(dot_file, compiled)
+
+    let bat =
+        $"dot -T{format} {dot_file} > {output_file}"
+
     File.WriteAllText(bat_file, bat)
     let result = Process.Start bat_file
     result.WaitForExit()
-            
+
     File.Delete dot_file
     File.Delete bat_file
-    
-    Process.Start(ProcessStartInfo("irfanview.exe", output_file, UseShellExecute=true))
-   
+
+    Process.Start(ProcessStartInfo("irfanview.exe", output_file, UseShellExecute = true))
+
 
 let exportToSvg dfa name =
     let graph = exportGraph dfa name
@@ -175,12 +227,11 @@ let evenOddDfa: DFA<string, char> =
       //           | "Odd" -> Some "Even"
       //           | _ -> None
       //       | _ -> None)
-      Rules = RuleList [
-          ("Even", '0', "Even")
-          ("Even", '1', "Odd")
-          ("Odd", '0', "Odd")
-          ("Odd", '1', "Even")
-      ]
+      Rules =
+          RuleList [ ("Even", '0', "Even")
+                     ("Even", '1', "Odd")
+                     ("Odd", '0', "Odd")
+                     ("Odd", '1', "Even") ]
       StartState = "Even"
       AcceptStates = [ "Even"; "Odd" ] }
 
@@ -252,8 +303,8 @@ let arbTwoCharString =
 let testM4Equality () =
     let test str =
         (runDfa M4 (Seq.toList str)) = (testM4 str)
-    Prop.forAll arbTwoCharString test
-    |> Check.Quick
+
+    Prop.forAll arbTwoCharString test |> Check.Quick
 
 
 let try2 () =
@@ -261,28 +312,32 @@ let try2 () =
     tryM4 "aab"
     tryM4 "baa"
 
-// arbTwoCharString.Generator |> Gen.sample 10 100 |> printfn "%A" 
+// arbTwoCharString.Generator |> Gen.sample 10 100 |> printfn "%A"
 
-let ZeroOneNFA =
-    { States = [ "q1"; "q2"; "q3"; "q4"; ]
+let ZeroOneLastThirdMustOneNFA =
+    { States = [ "q1"; "q2"; "q3"; "q4" ]
       InputSets = [ '0'; '1' ]
       Rules =
-        RuleList [
-            ("q1", '0', "q1")
-            ("q1", '1', "q1")
-            ("q1", '1', "q2")
-            ("q2", '0', "q3")
-            ("q2", '1', "q3")
-            ("q3", '0', "q4")
-            ("q3", '1', "q4")
-        ]
+        RuleList [ ("q1", '0', "q1")
+                   ("q1", '1', "q1")
+                   ("q1", '1', "q2")
+                   ("q2", '0', "q3")
+                   ("q2", '1', "q3")
+                   ("q3", '0', "q4")
+                   ("q3", '1', "q4") ]
       StartState = "q1"
       AcceptStates = [ "q4" ] }
-    
+
+let TryNFA nfa input =
+    let seqInput = Seq.toList input
+    FA.runNFA nfa seqInput |> printfn "%A"
 
 // testM4Equality ()
 
-exportToSvg evenOddDfa "EvenOdd"
-Console.WriteLine()
-exportToSvg M4 "M4"
-exportToSvg ZeroOneNFA "ZeroOne"
+// exportToSvg evenOddDfa "EvenOdd"
+// Console.WriteLine()
+// exportToSvg M4 "M4"
+TryNFA ZeroOneLastThirdMustOneNFA "001011"
+// exportToSvg ZeroOneNFA "ZeroOne"
+
+// next combine NFA
