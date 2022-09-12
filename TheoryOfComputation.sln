@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TheoryOfComputation", "TheoryOfComputation\TheoryOfComputation.fsproj", "{227A88B2-8034-466C-8714-CD9B5AB00718}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Ch1_RegularLanguages", "Ch1_RegularLanguages\Ch1_RegularLanguages.fsproj", "{227A88B2-8034-466C-8714-CD9B5AB00718}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Ch2_ContextFreeLanguages", "Ch2_ContextFreeLanguages\Ch2_ContextFreeLanguages.fsproj", "{183D47B0-1C2E-4379-8F6B-B7F5933898B9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +14,9 @@ Global
 		{227A88B2-8034-466C-8714-CD9B5AB00718}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{227A88B2-8034-466C-8714-CD9B5AB00718}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{227A88B2-8034-466C-8714-CD9B5AB00718}.Release|Any CPU.Build.0 = Release|Any CPU
+		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

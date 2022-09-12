@@ -24,7 +24,65 @@ type DFA<'State, 'Input> =
       StartState: 'State
       AcceptStates: 'State list }
 
-let runRule rule state input =
+type FiniteAutomataType = DFA | NFA
+
+type StateParam<'S> = State of 'S | StateList of 'S list
+
+module FA =
+    let isDFA dfa =
+        let FiniteAutomataType b =
+            if b = true then
+                DFA
+            else
+                NFA
+        
+        match dfa.Rules with
+        | RuleList list ->
+            List.distinctBy (fun (s, i, r) -> (s, i)) list
+            |> List.length
+            |> (=) list.Length
+            // |> FiniteAutomataType
+        | _ -> failwith "todo"
+    
+    let runNfaRule rule (state) input =
+        let checkState s =
+            match state with
+            | State se -> se = s
+            | StateList l -> l.Contains s
+        let (RuleList li) = rule
+        List.map (fun (s, i, r) ->
+            if checkState s && input = i then
+                Some r
+            else
+                None) li
+        |> List.choose id
+    
+    let rec runNfaAt (dfa: DFA<'State, 'Input>) (curState: StateParam<'State>) (input: 'Input list) : 'State option =
+        if input.IsEmpty then
+            let getAccepted s =
+                if List.contains s dfa.AcceptStates then
+                    Some s
+                else
+                    None
+            let extract o =
+                match o with
+                | Some v -> v
+                | None -> None
+
+            match curState with
+            | State s -> getAccepted s
+            | StateList l -> List.map getAccepted l |> List.tryFind Option.isSome |> extract
+                
+        else
+            let nextStates =
+                runNfaRule dfa.Rules curState (List.head input)
+            
+            if nextStates.IsEmpty then
+                None
+            else
+                runNfaAt dfa (StateList nextStates) (List.tail input)
+        
+let runDfaRule rule state input =
     match rule with
     | RuleFun func -> func state input
     | RuleList l ->
@@ -39,7 +97,7 @@ let runRule rule state input =
         | Some (_, _, r) -> Some r
         | None -> None
 
-let rec runAt (dfa: DFA<'State, 'Input>) (curState: 'State) (input: 'Input list) : 'State option =
+let rec runDfaAt (dfa: DFA<'State, 'Input>) (curState: 'State) (input: 'Input list) : 'State option =
     if input.IsEmpty then
         if List.contains curState dfa.AcceptStates then
             Some curState
@@ -47,15 +105,15 @@ let rec runAt (dfa: DFA<'State, 'Input>) (curState: 'State) (input: 'Input list)
             None
     else
         let nextState =
-            runRule dfa.Rules curState (List.head input)
+            runDfaRule dfa.Rules curState (List.head input)
 
         match nextState with
         | Some n ->
             let nextInput = List.skip 1 input
-            runAt dfa n nextInput
+            runDfaAt dfa n nextInput
         | None -> None
 
-let run dfa input = runAt dfa dfa.StartState input
+let runDfa dfa input = runDfaAt dfa dfa.StartState input
 
 let exportGraph (dfa:DFA<'S, 'I>) name =
     let graph = DotGraph(name, true)
@@ -96,6 +154,8 @@ let compileGraphToSvg graph name (format) =
             
     File.Delete dot_file
     File.Delete bat_file
+    
+    Process.Start(ProcessStartInfo("irfanview.exe", output_file, UseShellExecute=true))
    
 
 let exportToSvg dfa name =
@@ -125,7 +185,7 @@ let evenOddDfa: DFA<string, char> =
       AcceptStates = [ "Even"; "Odd" ] }
 
 let tryDFA dfa (input: string) =
-    run dfa (Seq.toList input) |> printfn "%A"
+    runDfa dfa (Seq.toList input) |> printfn "%A"
 
 let tryEvenOdd = tryDFA evenOddDfa
 
@@ -191,7 +251,7 @@ let arbTwoCharString =
 
 let testM4Equality () =
     let test str =
-        (run M4 (Seq.toList str)) = (testM4 str)
+        (runDfa M4 (Seq.toList str)) = (testM4 str)
     Prop.forAll arbTwoCharString test
     |> Check.Quick
 
@@ -203,9 +263,26 @@ let try2 () =
 
 // arbTwoCharString.Generator |> Gen.sample 10 100 |> printfn "%A" 
 
+let ZeroOneNFA =
+    { States = [ "q1"; "q2"; "q3"; "q4"; ]
+      InputSets = [ '0'; '1' ]
+      Rules =
+        RuleList [
+            ("q1", '0', "q1")
+            ("q1", '1', "q1")
+            ("q1", '1', "q2")
+            ("q2", '0', "q3")
+            ("q2", '1', "q3")
+            ("q3", '0', "q4")
+            ("q3", '1', "q4")
+        ]
+      StartState = "q1"
+      AcceptStates = [ "q4" ] }
+    
 
 // testM4Equality ()
 
 exportToSvg evenOddDfa "EvenOdd"
 Console.WriteLine()
 exportToSvg M4 "M4"
+exportToSvg ZeroOneNFA "ZeroOne"
