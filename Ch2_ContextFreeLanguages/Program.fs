@@ -29,19 +29,33 @@ let ZeroOneSymmetry =
 [<Literal>]
 let Empty = '\000'
 
-let rec runCFGAt (cfg:CFG) (input: char list) (stack:Stack<CFGNode>) =
+let rec runCFGAt (cfg:CFG) (input: char list) (stack: CFGNode list) (indent:int) =
     if List.isEmpty input then
         true
     else
-        match stack.Pop() with
+        printfn $"{string('\t', indent)}%A{stack.Head}"
+        match stack.Head with
         | Variable v ->
             let rule = List.find (fun r -> r.Variable = v) cfg.Rules
-            true
+            let nextRule r =
+                runCFGAt cfg input (r @ stack.Tail) (indent + 1)
+            List.exists nextRule rule.Generate
         | Terminal c ->
             if c = Empty then
                 List.isEmpty input
             elif input.Head = c then
-                runCFGAt cfg input.Tail stack
+                runCFGAt cfg input.Tail stack.Tail indent
             else
                 false
-        
+
+let runCFG (cfg:CFG) (input:string) =
+    runCFGAt cfg (Seq.toList input) [Terminal Empty; Variable cfg.Start] 0
+
+let TryCFG (cfg:CFG) (input:string) =
+    runCFG cfg input
+    |> printfn "%A"
+
+TryCFG ZeroOneSymmetry "0011"
+TryCFG ZeroOneSymmetry "011"
+TryCFG ZeroOneSymmetry "0101"
+TryCFG ZeroOneSymmetry "0000011111"
