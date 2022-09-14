@@ -1,5 +1,6 @@
 ﻿// #r "nuget:FsCheck"
 open System
+open System.Collections.Generic
 open System.Diagnostics
 open System.IO
 open System.Linq
@@ -48,10 +49,9 @@ module FA =
         match dfa.Rules with
         | RuleList list ->
             List.exists (fun (_, i, _) -> i = Epsilon) list
-            ||
-            List.distinctBy (fun (s, i, r) -> (s, i)) list
-            |> List.length
-            |> (=) list.Length
+            || List.distinctBy (fun (s, i, r) -> (s, i)) list
+               |> List.length
+               |> (=) list.Length
         // |> FiniteAutomataType
         | _ -> failwith "todo"
 
@@ -125,10 +125,53 @@ module FA =
                 None
             else
                 runNfaAt dfa (StateList nextStates) (List.tail input)
-    
+
     let rec runNFA nfa input =
         runNfaAt nfa (State nfa.StartState) input
 
+    let NfaToDfa (nfa:DFA<'S, char>) =
+        let (RuleList ruleList) = nfa.Rules
+        let extendState stateList =
+            List.filter (fun (st, i, ns) -> List.contains st stateList && i = Epsilon) ruleList
+            |> List.map (fun (_, _, ns) -> ns)
+            |> (@) stateList
+        let nextRules stateList =
+            // get rules which start state is in stateList
+            // group list with input, get all possible nextState in it, means stateList --input-> nextState List 
+            List.filter (fun (st, _, _) -> List.contains st stateList) ruleList
+            |> List.groupBy (fun (_, i, _) -> i)
+            |> List.map (fun (i, rules) ->
+                let nextStates = List.map (fun (_, _, n) -> n) rules
+                (stateList, i, (extendState nextStates)))
+        
+        // if stateList already exists return
+        // if List.exists (fun s -> nfa.AcceptStates.Contains s) stateList then addToAccept
+        // get nextRules
+        let calcStates = new List<'S list>() 
+        let rec generateStates (stateList: 'S list) : (('S list * char * 'S list) list * 'S list list) =
+            if calcStates.Contains(stateList) then
+                ([], [])
+            else
+                Trace.WriteLine $"%A{stateList}"
+                calcStates.Add(stateList)
+                let isAccept = List.exists (fun s -> nfa.AcceptStates.Contains s) stateList
+                let rules = nextRules stateList
+                let nextStates = List.map (fun (_,_,n) ->n) rules
+                List.map generateStates nextStates
+                |> List.fold (fun (a, b) (c, d) -> (a@c, b@d))
+                       (rules, if isAccept then [stateList] else [])
+            
+
+        let start = extendState [nfa.StartState]
+        let (rules, acceptStateLists) = generateStates start 
+        
+        { States = Seq.toList calcStates
+          InputSets = nfa.InputSets
+          Rules = RuleList rules
+          StartState= start
+          AcceptStates = acceptStateLists }
+        
+        
 let runDfaRule rule state input =
     match rule with
     | RuleFun func -> func state input
@@ -180,7 +223,7 @@ let exportGraph (dfa: DFA<'S, 'I>) name =
 
     match dfa.Rules with
     | RuleList ruleList ->
-        List.map (fun (s, i, r) -> DotEdge(s.ToString(), r.ToString(), Label = i.ToString())) ruleList
+        List.map (fun (s, i, r) -> DotEdge(s.ToString(), r.ToString(), Label = (if i = Epsilon then "ε" else i.ToString()))) ruleList
         |> Enumerable.Cast
         |> graph.Elements.AddRange
     | _ -> failwith "Not support Rule func"
@@ -195,6 +238,7 @@ let compileGraphToSvg graph name (format) =
     let bat_file = $"{name}.bat"
     let output_file = $"{name}.{format}"
 
+    Console.WriteLine(compiled)
     File.WriteAllText(dot_file, compiled)
 
     let bat =
@@ -328,6 +372,20 @@ let ZeroOneLastThirdMustOneNFA =
       StartState = "q1"
       AcceptStates = [ "q4" ] }
 
+let EvenOrThreeZeroNFA =
+    { States = [ "s"; "e1"; "e2"; "t1"; "t2"; "t3" ]
+      InputSets = [ '0' ]
+      Rules =
+        RuleList [ ("s", Epsilon, "e1")
+                   ("s", Epsilon, "t1")
+                   ("e1", '0', "e2")
+                   ("e2", '0', "e1")
+                   ("t1", '0', "t2")
+                   ("t2", '0', "t3")
+                   ("t3", '0', "t1") ]
+      StartState = "s"
+      AcceptStates = [ "e1"; "t1" ] }
+
 let TryNFA nfa input =
     let seqInput = Seq.toList input
     FA.runNFA nfa seqInput |> printfn "%A"
@@ -338,6 +396,20 @@ let TryNFA nfa input =
 // Console.WriteLine()
 // exportToSvg M4 "M4"
 TryNFA ZeroOneLastThirdMustOneNFA "001011"
-// exportToSvg ZeroOneNFA "ZeroOne"
+exportToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
+exportToSvg (FA.NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
 
 // next combine NFA
+
+// TryNFA EvenOrThreeZeroNFA "00"
+// TryNFA EvenOrThreeZeroNFA "000"
+// TryNFA EvenOrThreeZeroNFA "00000"
+// TryNFA EvenOrThreeZeroNFA "000000"
+exportToSvg EvenOrThreeZeroNFA "EvenOrThree0"
+exportToSvg (FA.NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
+
+// FA.NfaToDfa EvenOrThreeZeroNFA |> printfn "%A"
+
+// let strList = new List<string list>()
+// strList.Add(["e1"; "t1"])
+// strList.Contains(["e1"; "t1"]) |> printfn "%A"
