@@ -4,6 +4,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Ch1_RegularLanguages", "Ch1
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Ch2_ContextFreeLanguages", "Ch2_ContextFreeLanguages\Ch2_ContextFreeLanguages.fsproj", "{183D47B0-1C2E-4379-8F6B-B7F5933898B9}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Utilities", "Utilities\Utilities.fsproj", "{6136683C-DDF0-4CCB-A9C1-04033A0946AD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{183D47B0-1C2E-4379-8F6B-B7F5933898B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6136683C-DDF0-4CCB-A9C1-04033A0946AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6136683C-DDF0-4CCB-A9C1-04033A0946AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6136683C-DDF0-4CCB-A9C1-04033A0946AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6136683C-DDF0-4CCB-A9C1-04033A0946AD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
