@@ -191,16 +191,17 @@ let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
                           yield stateName i ]
 
                 let revRule = List.rev rule
+
                 let initRule =
                     ((LOOP_STATE, CharEpsilon, Variable variable), ((stateName 1), revRule.Head))
-                
+
                 let cfgRuleToPdaRule i r =
                     (((stateName (i + 1)), CharEpsilon, Epsilon), ((stateName (i + 2)), r))
+
                 let pdaRules =
-                    List.skip 1 revRule
-                    |> List.mapi cfgRuleToPdaRule
-                    
-                (initRule::pdaRules, states)
+                    List.skip 1 revRule |> List.mapi cfgRuleToPdaRule
+
+                (initRule :: pdaRules, states)
 
         List.mapi (fun i r -> expandRuleToState r $"{varName}{i}" varName) rules
         |> List.fold (fun (a, b) (c, d) -> (a @ c, b @ d)) ([], [])
@@ -231,28 +232,39 @@ let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
       InputSet = cfg.TerminalSet
       Rules = defaultRules @ fromCfgRules @ fromCfgTerminalRules }
 
+/// stack 存储需要匹配的 CFGNode list，最前面的 Head 是当前需要匹配的元素
 let rec runCFGAt (cfg: CFG) (input: char list) (stack: CFGNode list) (indent: int) =
     if List.isEmpty input then
         true
+    elif indent >= 10 then
+        false
     else
-        printfn "%*s%A" indent "" stack.Head
+        // printfn "%*s%A Input: %A" indent "" stack.Head input
 
         match stack.Head with
         | Variable v ->
-            let rule =
+            // CFG 为了避免前置递归，导致无限深入，需要对 rule 排序一个优先级来执行
+            // 比如 T -> Ta | e 应当先执行 T -> e 检查是否成功，然后再进入递归尝试
+            let nextRule =
                 List.find (fun r -> r.Variable = v) cfg.Rules
 
-            let nextRule r =
-                runCFGAt cfg input (r @ stack.Tail) (indent + 1)
+            let isNextRuleSuccess gen =
+                let success = runCFGAt cfg input (gen @ stack.Tail) (indent + 1)
+                if success then
+                    printfn "%*s From %A Next Rule %A" indent "" (Variable v) gen
+                    printfn "%*s%A Input: %A" indent "" stack.Head input
+                success
 
-            List.exists nextRule rule.Generate
+            List.exists isNextRuleSuccess nextRule.Generate
         | Terminal c ->
             if input.Head = c then
+                printfn "%*s%A Input: %A" indent "" stack.Head input
                 runCFGAt cfg input.Tail stack.Tail indent
             else
                 false
         | Epsilon -> runCFGAt cfg input stack.Tail indent
         | Empty -> List.isEmpty input
+
 
 let runCFG (cfg: CFG) (input: string) =
     runCFGAt cfg (Seq.toList input) [ Variable cfg.Start; Empty ] 0
@@ -284,46 +296,95 @@ let ZeroOnePDA =
           (("q3", '1', Terminal '0'), ("q3", Epsilon))
           (("q3", CharEpsilon, Empty), ("q4", Epsilon)) ] }
 
-PDA.visualizePda ZeroOnePDA "ZeroOnePDA"
-PDA.visualizePda (generatePDAFromCFG ZeroOneSymmetry) "ZeroOnePDAfromCFG"
+let TryZeroOne () =
+    PDA.visualizePda ZeroOnePDA "ZeroOnePDA"
+    PDA.visualizePda (generatePDAFromCFG ZeroOneSymmetry) "ZeroOnePDAfromCFG"
 
-TryCFG ZeroOneSymmetry "0011"
-TryCFG ZeroOneSymmetry "011"
-TryCFG ZeroOneSymmetry "0101"
-TryCFG ZeroOneSymmetry "0000011111"
+    TryCFG ZeroOneSymmetry "0011"
+    TryCFG ZeroOneSymmetry "011"
+    TryCFG ZeroOneSymmetry "0101"
+    TryCFG ZeroOneSymmetry "0000011111"
+
+
+let getDependencyGraph cfg = cfg
+
+let ChomskyNormalize cfg = cfg
 
 let G6 =
     { Start = "S"
-      Rules = [
-          { Variable="S"; Generate=[
-              [Variable "A"; Variable "S"; Variable "A"; ]
-              [Terminal 'a'; Variable "B"; ]
-          ] }
-          { Variable="A"; Generate=[
-              [Variable "B"; ]
-              [Variable "S"; ]
-          ] }
-          { Variable="B"; Generate=[
-              [Terminal 'b'; ]
-              [Epsilon; ]
-          ] }
-      ]
+      Rules =
+        [ { Variable = "S"
+            Generate =
+              [ [ Variable "A"
+                  Variable "S"
+                  Variable "A" ]
+                [ Terminal 'a'; Variable "B" ] ] }
+          { Variable = "A"
+            Generate = [ [ Variable "B" ]; [ Variable "S" ] ] }
+          { Variable = "B"
+            Generate = [ [ Epsilon ]; [ Terminal 'b' ] ] } ]
       TerminalSet = [ 'a'; 'b' ] }
 
+/// S -> aTb | b
+/// T -> Ta | e
 let G7 =
     { Start = "S"
-      Rules = [
-          { Variable="S"; Generate=[
-              [Terminal 'a'; Variable "T"; Terminal 'b' ]
-              [Terminal 'b'; ]
-          ] }
-          { Variable="T"; Generate=[
-              [Variable "T"; Terminal 'a' ]
-              [Epsilon; ]
-          ] }
-      ]
+      Rules =
+        [ { Variable = "S"
+            Generate =
+              [ [ Terminal 'a'
+                  Variable "T"
+                  Terminal 'b' ]
+                [ Terminal 'b' ] ] }
+          { Variable = "T"
+            Generate =
+              [ [ Epsilon ]
+                [ Variable "T"; Terminal 'a' ] ] } ]
       TerminalSet = [ 'a'; 'b' ] }
 
+let Calculate =
+    { Start = "Expr"
+      Rules =
+        [ 
+          { Variable = "Expr"
+            Generate =
+              [ [ Variable "Term" ]
+                [ Variable "Expr"
+                  Terminal '+'
+                  Variable "Term" ] ] }
+          { Variable = "Term"
+            Generate =
+              [ [ Variable "Factor" ]
+                [ Variable "Term"
+                  Terminal '*'
+                  Variable "Factor" ] ] }
+          { Variable = "Factor"
+            Generate =
+              [ [ Variable "Digit" ]
+                [ Terminal '('
+                  Variable "Expr"
+                  Terminal ')' ] ] }
+          { Variable = "Digit"
+            Generate = (Seq.toList "0123456789") |> List.map (fun c -> [Terminal c]) } ]
+      TerminalSet = Seq.toList "+-*/0123456789" }
+
+let TryG7 () =
+    TryCFG G7 "aaab"
+    TryCFG G7 "ab"
+    TryCFG G7 "b"
+    TryCFG G7 "aa"
+    PDA.visualizePda (generatePDAFromCFG G7) "G7"
+
+let TryCalculate () =
+    // TryCFG Calculate "9+5"
+    // TryCFG Calculate "4*3"
+    TryCFG Calculate "9+5+2"
+    TryCFG Calculate "9*5+2"
+    TryCFG Calculate "9*(5+2)"
+    // PDA.visualizePda (generatePDAFromCFG Calculate) "Calculate"
+
+// TryG7()
 
 PDA.visualizePda (generatePDAFromCFG G6) "G6"
-PDA.visualizePda (generatePDAFromCFG G7) "G7"
+
+// TryCalculate()
