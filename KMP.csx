@@ -83,7 +83,7 @@ string VisualizeDfa(string pattern)
         EdgeWithLabel(i - 1, i, pattern[i].ToString());
     }
 
-    sb.AppendLine("edge[weight=1];");
+    sb.AppendLine("edge[weight=1, color=red];");
     for (int i = 0; i < dfa.Length; i++)
     {
         if (dfa[i] == -1)
@@ -103,7 +103,7 @@ void exportDotToSvg(string dot, string name, string format)
 
 
     var bat =
-        $"dot -T{format} {dot_file} > {output_file}";
+        $"dot -T{format} {dot_file} -o {output_file}";
 
 
     File.WriteAllText(bat_file, bat);
@@ -114,7 +114,8 @@ void exportDotToSvg(string dot, string name, string format)
     File.Delete(dot_file);
     File.Delete(bat_file);
 
-	var start_info = new ProcessStartInfo("irfanview.exe", output_file) { UseShellExecute = true };
+	var start_info = new ProcessStartInfo(output_file) 
+        { UseShellExecute = true };
     Process.Start(start_info);
 }
 
@@ -124,5 +125,5 @@ var searchResult = KmpSearch("ababa", "acabaababaa");
 Console.WriteLine($"Search result at {searchResult}");
 
 var dot = VisualizeDfa("ababa");
-exportDotToSvg(dot, "ababa", "plain");
+exportDotToSvg(dot, "ababa", "svg");
 // System.Console.WriteLine(dot);
