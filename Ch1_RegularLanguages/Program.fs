@@ -215,6 +215,21 @@ module FA =
             | None -> None
 
     let runDfa dfa input = runDfaAt dfa dfa.StartState input
+    
+    let normalizeFaState (dfa: DFA<'S, 'I>) =
+        let mapToNewStates = List.mapi (fun i s -> (s, i)) dfa.States
+                            |> Map.ofList
+        let newStartState = mapToNewStates[dfa.StartState]
+        let newAcceptStates = List.map (fun s -> mapToNewStates[s]) dfa.AcceptStates
+        let newStates = Map.toList mapToNewStates |> List.map (fun (k, v) -> v)
+        let (RuleList rules) = dfa.Rules
+        let newRules = List.map (fun (from, _i, dest) -> (mapToNewStates[from], _i, mapToNewStates[dest])) rules
+        {
+            StartState = newStartState
+            States = newStates
+            InputSets = dfa.InputSets
+            Rules = RuleList newRules
+            AcceptStates = newAcceptStates }
 
     let minimizeDfa (dfa: DFA<'S, 'I>) = //: DFA<'S list, 'I> =
         let SplitState (stateList: 'S list) (otherStateListSets: 'S list list) =
@@ -509,12 +524,12 @@ let MultiRedundantZeroOne =
 let TryZeroOneLastThirdMustOneNFA() =
     // TryNFA ZeroOneLastThirdMustOneNFA "001011"
     exportToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
-    let ZeroOneLastThirdMustOneDFA = FA.NfaToDfa ZeroOneLastThirdMustOneNFA
+    let ZeroOneLastThirdMustOneDFA = FA.NfaToDfa ZeroOneLastThirdMustOneNFA |> FA.normalizeFaState
     exportToSvg ZeroOneLastThirdMustOneDFA "ZeroOneDFA"
     let minimizeDfa = FA.minimizeDfa ZeroOneLastThirdMustOneDFA
     exportToSvg minimizeDfa "ZeroOneDFAMinimized"
 
-TryZeroOneLastThirdMustOneNFA()
+// TryZeroOneLastThirdMustOneNFA()
 // next combine NFA
 
 let TryEvenOrThreeZeroNFA() =
@@ -523,10 +538,12 @@ let TryEvenOrThreeZeroNFA() =
     // TryNFA EvenOrThreeZeroNFA "00000"
     // TryNFA EvenOrThreeZeroNFA "000000"
     exportToSvg EvenOrThreeZeroNFA "EvenOrThree0"
-    let EvenOrThreeZeroDFA = FA.NfaToDfa EvenOrThreeZeroNFA
+    let EvenOrThreeZeroDFA = FA.NfaToDfa EvenOrThreeZeroNFA |> FA.normalizeFaState
     let EvenOrThreeZeroDFAMinimized = FA.minimizeDfa EvenOrThreeZeroDFA
     exportToSvg EvenOrThreeZeroDFA "EvenOrThree0DFA"
     exportToSvg EvenOrThreeZeroDFAMinimized "EvenOrThree0DFAMinimized"
+
+TryEvenOrThreeZeroNFA()
 
 // exportToSvg MultiRedundantZeroOne "MultiRedundantZeroOne"
 // exportToSvg (FA.minimizeDfa MultiRedundantZeroOne) "MinimizeMultiRedundantZeroOne"
