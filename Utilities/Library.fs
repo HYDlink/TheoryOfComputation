@@ -23,7 +23,7 @@ module Graph =
         File.Delete dot_file
         File.Delete bat_file
     
-        Process.Start(ProcessStartInfo("irfanview.exe", output_file, UseShellExecute = true))
+        Process.Start(ProcessStartInfo(output_file, UseShellExecute = true))
         |> ignore
 
     let compileGraphToSvg graph name (format) =
