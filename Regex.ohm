@@ -1,0 +1,32 @@
+Regex {
+  Exp = Or
+  Or 
+  	= Concat "|" Concat -- multiple
+  	| Concat -- next
+        
+  Concat = Closure+
+  
+  Closure 
+  	= Value "*" -- zeroOrMore
+    | Value "+"  -- multiple
+    | Value  -- one
+  
+  Value = Char | Set | Group
+  
+  Group = "(" Exp ")"
+  
+  Set = "[" CharRangeList "]"
+  
+  CharRangeList 
+   = Char ".." Char -- range
+   | Char -- char
+  
+  Char = alnum
+  
+  ident  (an identifier)
+    = letter alnum*
+
+  number  (a number)
+    = digit* "." digit+  -- fract
+    | digit+             -- whole
+}
