@@ -1,4 +1,5 @@
 ﻿// For more information see https://aka.ms/fsharp-console-apps
+open TheoryOfComputation
 open TheoryOfComputation.ContextFreeGrammar
 open TheoryOfComputation.PushDownAutomata
 
@@ -99,6 +100,25 @@ let Calculate =
             Generate = (Seq.toList "0123456789") |> List.map (fun c -> [Terminal c]) } ]
       TerminalSet = Seq.toList "+-*/0123456789" }
 
+let SimpleCalculate =
+    { Start = "E"
+      Rules =
+        [ 
+          { Variable = "E"
+            Generate =
+              [ [ Variable "T" ]
+                [ Variable "E"
+                  Terminal '+'
+                  Variable "T" ] ] }
+          { Variable = "T"
+            Generate =
+              [ [ Terminal 'a' ]
+                [ Variable "T"
+                  Terminal '*'
+                  Terminal 'a' ] ] } ]
+      TerminalSet = Seq.toList "a*+" }
+  
+
 let TryG7 () =
     TryCFG G7 "aaab"
     TryCFG G7 "ab"
@@ -109,13 +129,30 @@ let TryG7 () =
 let TryCalculate () =
     // TryCFG Calculate "9+5"
     // TryCFG Calculate "4*3"
-    TryCFG Calculate "9+5+2"
-    TryCFG Calculate "9*5+2"
-    TryCFG Calculate "9*(5+2)"
-    // PDA.visualizePda (generatePDAFromCFG Calculate) "Calculate"
+    // TryCFG Calculate "9+5+2"
+    // TryCFG Calculate "9*5+2"
+    // TryCFG Calculate "9*(5+2)"
+    PDA.visualizePda (generatePDAFromCFG Calculate) "Calculate"
+    VisualizeDK Calculate "CalculateDK"
 
+let VisualizeSimpleCalculate () =
+    PDA.visualizePda (generatePDAFromCFG SimpleCalculate) "SimpleCalculate"
+    VisualizeDK SimpleCalculate "SimpleCalculateDK"
+
+let example() =
+  let mutable outer = 1
+  let innerEvaluate =
+    let test = 2
+    outer <- outer + 1
+    test * outer
+  printfn $"{innerEvaluate}"
+  printfn $"{innerEvaluate}"
 // TryG7()
 
-PDA.visualizePda (generatePDAFromCFG G6) "G6"
+// example()
+// PDA.visualizePda (generatePDAFromCFG G6) "G6"
+// VisualizeDK G6 "DKG6"
 
+VisualizeSimpleCalculate()
+// TryCalculate()
 // TryCalculate()

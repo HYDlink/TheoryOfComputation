@@ -1,4 +1,4 @@
-﻿module TheoryOfComputation.FiniteAutomata.Program
+﻿module TheoryOfComputation.FiniteAutomataProgram
 open TheoryOfComputation.FiniteAutomata
 open FsCheck
 
@@ -132,7 +132,7 @@ let EvenOrThreeZeroNFA =
 
 let TryNFA nfa input =
     let seqInput = Seq.toList input
-    FA.runNFA nfa seqInput |> printfn "%A"
+    runNFA nfa seqInput |> printfn "%A"
 
 // testM4Equality ()
 
@@ -141,7 +141,7 @@ let TryNFA nfa input =
 // exportToSvg M4 "M4"
 TryNFA ZeroOneLastThirdMustOneNFA "001011"
 exportToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
-exportToSvg (FA.NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
+exportToSvg (NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
 
 // next combine NFA
 
@@ -150,7 +150,7 @@ exportToSvg (FA.NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
 // TryNFA EvenOrThreeZeroNFA "00000"
 // TryNFA EvenOrThreeZeroNFA "000000"
 exportToSvg EvenOrThreeZeroNFA "EvenOrThree0"
-exportToSvg (FA.NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
+exportToSvg (NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
 
 // FA.NfaToDfa EvenOrThreeZeroNFA |> printfn "%A"
 

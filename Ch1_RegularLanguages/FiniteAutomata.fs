@@ -14,7 +14,8 @@ open DotNetGraph.Node
 open Utilities
 
 type RuleFun<'State, 'Input> = 'State -> 'Input -> 'State option
-type RuleList<'State, 'Input> = ('State * 'Input * 'State) list
+type Transition<'State, 'Input> = 'State * 'Input * 'State
+type RuleList<'State, 'Input> = Transition<'State, 'Input> list
 
 type RuleSet<'State, 'Input> =
     | RuleFun of RuleFun<'State, 'Input>
@@ -293,7 +294,7 @@ let minimizeDfa (dfa: DFA<'S, 'I>) = //: DFA<'S list, 'I> =
     }
  
 
-let exportGraph (dfa: DFA<'S, 'I>) name =
+let exportGraphWithCustomLabel (dfa: DFA<'S, 'I>) name inputLabeler =
     let graph = DotGraph(name, true)
 
     let state2node state =
@@ -311,15 +312,22 @@ let exportGraph (dfa: DFA<'S, 'I>) name =
 
     match dfa.Rules with
     | RuleList ruleList ->
-        List.map (fun (s, i, r) -> DotEdge(s.ToString(), r.ToString(), Label = (if i = Epsilon then "ε" else i.ToString()))) ruleList
+        List.map (fun (s, i, r) -> DotEdge(s.ToString(), r.ToString(), Label = DotLabelAttribute(inputLabeler i))) ruleList
         |> Enumerable.Cast
         |> graph.Elements.AddRange
     | _ -> failwith "Not support Rule func"
 
     graph
 
+let exportGraph dfa name =
+    let inputLabeler i = if i = Epsilon then "ε" else i.ToString()
+    exportGraphWithCustomLabel dfa name inputLabeler
 
+let exportGeneralGraph dfa name =
+    let stringer i = i.ToString() 
+    exportGraphWithCustomLabel dfa name stringer 
+    
 let exportToSvg dfa name =
-    let graph = exportGraph dfa name
+    let graph = exportGeneralGraph dfa name
     let compiled = DotCompiler(graph).Compile()
     Graph.exportDotToSvg compiled name "svg"

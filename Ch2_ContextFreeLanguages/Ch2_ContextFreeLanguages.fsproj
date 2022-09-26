@@ -16,6 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Ch1_RegularLanguages\Ch1_RegularLanguages.fsproj" />
       <ProjectReference Include="..\Utilities\Utilities.fsproj" />
     </ItemGroup>
 
