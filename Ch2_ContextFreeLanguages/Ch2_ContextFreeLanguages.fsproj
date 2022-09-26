@@ -6,6 +6,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="ContextFreeGrammar.fs" />
+        <Compile Include="PushDownAutomata.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
