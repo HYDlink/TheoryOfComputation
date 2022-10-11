@@ -41,7 +41,6 @@ type CFG =
       TerminalSet: char list }
 
 
-
 let rec runCFGAt (cfg: CFG) (input: char list) (stack: CFGNode list) (indent: int) =
     if List.isEmpty input then
         true
@@ -73,6 +72,28 @@ type DotRule =
       Later: CFGNode list }
 
 type TransitionGroup<'S, 'I> = { From: 'S; Way: 'I; To: 'S }
+
+let IsRuleLeftRecursion (cfgRule: CFGRule) =
+    cfgRule.Generate |> List.exists (fun r -> r.Head = Variable cfgRule.Variable)
+
+let EliminateLeftRecursiveProduction (cfgRule: CFGRule) : CFGRule list =
+    let leftRecursiveRule =  cfgRule.Generate
+                             |> List.where (fun r -> r.Head = Variable cfgRule.Variable)
+    let notRecursiveRule = List.except leftRecursiveRule cfgRule.Generate
+    if leftRecursiveRule.IsEmpty then
+        [cfgRule]
+    else
+        let newVariable = cfgRule.Variable + "'"
+        let formalVariableGenerate = notRecursiveRule
+                                     |> List.map (fun r -> r @ [(Variable newVariable)])
+        let formalVariableRule = { Variable = cfgRule.Variable; Generate = formalVariableGenerate }
+        
+        let newVariableGenerate = leftRecursiveRule
+                                  |> List.map (fun r -> r.Tail @ [(Variable newVariable)])
+        let newVariableRule = { Variable = newVariable; Generate = [Epsilon] :: newVariableGenerate }
+        [formalVariableRule; newVariableRule]
+
+
 
 let DK (cfg: CFG) =
     let CfgRuleToDotRule cfgRule =

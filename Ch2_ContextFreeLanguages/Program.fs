@@ -77,8 +77,7 @@ let G7 =
 let Calculate =
     { Start = "Expr"
       Rules =
-        [ 
-          { Variable = "Expr"
+        [ { Variable = "Expr"
             Generate =
               [ [ Variable "Term" ]
                 [ Variable "Expr"
@@ -97,14 +96,15 @@ let Calculate =
                   Variable "Expr"
                   Terminal ')' ] ] }
           { Variable = "Digit"
-            Generate = (Seq.toList "0123456789") |> List.map (fun c -> [Terminal c]) } ]
+            Generate =
+              (Seq.toList "0123456789")
+              |> List.map (fun c -> [ Terminal c ]) } ]
       TerminalSet = Seq.toList "+-*/0123456789" }
 
 let SimpleCalculate =
     { Start = "E"
       Rules =
-        [ 
-          { Variable = "E"
+        [ { Variable = "E"
             Generate =
               [ [ Variable "T" ]
                 [ Variable "E"
@@ -117,7 +117,7 @@ let SimpleCalculate =
                   Terminal '*'
                   Terminal 'a' ] ] } ]
       TerminalSet = Seq.toList "a*+" }
-  
+
 
 let TryG7 () =
     TryCFG G7 "aaab"
@@ -139,20 +139,53 @@ let VisualizeSimpleCalculate () =
     PDA.visualizePda (generatePDAFromCFG SimpleCalculate) "SimpleCalculate"
     VisualizeDK SimpleCalculate "SimpleCalculateDK"
 
-let example() =
-  let mutable outer = 1
-  let innerEvaluate =
-    let test = 2
-    outer <- outer + 1
-    test * outer
-  printfn $"{innerEvaluate}"
-  printfn $"{innerEvaluate}"
+let example () =
+    let mutable outer = 1
+
+    let innerEvaluate =
+        let test = 2
+        outer <- outer + 1
+        test * outer
+
+    printfn $"{innerEvaluate}"
+    printfn $"{innerEvaluate}"
 // TryG7()
 
 // example()
 // PDA.visualizePda (generatePDAFromCFG G6) "G6"
 // VisualizeDK G6 "DKG6"
 
-VisualizeSimpleCalculate()
+// VisualizeSimpleCalculate()
 // TryCalculate()
 // TryCalculate()
+
+let TestEliminateLeftRecursion =
+    let LeftRecursionMostSimple =
+        { Start = "A"
+          Rules =
+            [ { Variable = "A"
+                Generate =
+                  [ [ Variable "A"; Terminal 'a' ]
+                    [ Terminal 'b' ] ] } ]
+          TerminalSet = [ 'a'; 'b' ] }
+        
+    let InDirectLeftRecursion =
+        { Start = "S"
+          Rules =
+            [ { Variable = "S"
+                Generate =
+                  [ [ Variable "A"; Terminal 'a' ]
+                    [ Terminal 'b' ] ]}
+              { Variable = "A"
+                Generate =
+                  [ [ Variable "A"; Terminal 's' ]
+                    [ Variable "S"; Terminal 'd' ]
+                    [ Terminal 'b' ]
+                    [ Epsilon ] ] } ]
+          TerminalSet = [ 'a'; 'b' ] }
+      
+
+    EliminateLeftRecursiveProduction LeftRecursionMostSimple.Rules.Head
+    |> printfn "%A"
+
+TestEliminateLeftRecursion

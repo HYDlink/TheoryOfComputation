@@ -9,10 +9,12 @@
         <Compile Include="ContextFreeGrammar.fs" />
         <Compile Include="PushDownAutomata.fs" />
         <Compile Include="Program.fs" />
+        <Compile Include="CFGParser.fs" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="DotNetGraph" Version="2.7.0" />
+      <PackageReference Include="FParsec" Version="1.1.1" />
     </ItemGroup>
 
     <ItemGroup>
