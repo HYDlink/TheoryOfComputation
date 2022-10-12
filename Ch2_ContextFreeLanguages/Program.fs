@@ -2,6 +2,7 @@
 open TheoryOfComputation
 open TheoryOfComputation.ContextFreeGrammar
 open TheoryOfComputation.PushDownAutomata
+open TheoryOfComputation.CFGParser
 
 let ZeroOneSymmetry =
     { Start = "S"
@@ -159,7 +160,7 @@ let example () =
 // TryCalculate()
 // TryCalculate()
 
-let TestEliminateLeftRecursion =
+let TestEliminateLeftRecursion() =
     let LeftRecursionMostSimple =
         { Start = "A"
           Rules =
@@ -188,4 +189,12 @@ let TestEliminateLeftRecursion =
     EliminateLeftRecursiveProduction LeftRecursionMostSimple.Rules.Head
     |> printfn "%A"
 
-TestEliminateLeftRecursion
+// TestEliminateLeftRecursion
+    
+let TestCfgParser() =
+    test pDerivation "Value \"Example\""
+    test pProduction "Value| \"Example\""
+    test pGenerate @"Exp = Or" 
+    test pGenerate @"Or 
+  	= Concat ""|"" Concat
+  	| Concat"

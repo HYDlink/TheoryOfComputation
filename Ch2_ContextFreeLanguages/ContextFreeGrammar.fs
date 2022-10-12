@@ -1,5 +1,6 @@
 ﻿module TheoryOfComputation.ContextFreeGrammar
 
+open System
 open System.Linq
 open DotNetGraph
 open DotNetGraph.Attributes
@@ -20,6 +21,7 @@ type Variable = string
 type CFGNode =
     | Variable of Variable
     | Terminal of char
+    | TerminalString of string
     | Epsilon
     | Empty
 
@@ -40,6 +42,7 @@ type CFG =
       Rules: CFGRule list
       TerminalSet: char list }
 
+/// ASTNode could become inheritance generic
 
 let rec runCFGAt (cfg: CFG) (input: char list) (stack: CFGNode list) (indent: int) =
     if List.isEmpty input then

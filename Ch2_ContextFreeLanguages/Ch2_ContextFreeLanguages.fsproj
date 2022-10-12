@@ -8,8 +8,8 @@
     <ItemGroup>
         <Compile Include="ContextFreeGrammar.fs" />
         <Compile Include="PushDownAutomata.fs" />
-        <Compile Include="Program.fs" />
         <Compile Include="CFGParser.fs" />
+        <Compile Include="Program.fs" />
     </ItemGroup>
 
     <ItemGroup>
