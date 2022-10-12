@@ -1,5 +1,4 @@
 ﻿// For more information see https://aka.ms/fsharp-console-apps
-open TheoryOfComputation
 open TheoryOfComputation.ContextFreeGrammar
 open TheoryOfComputation.PushDownAutomata
 open TheoryOfComputation.CFGParser
@@ -9,11 +8,11 @@ let ZeroOneSymmetry =
       Rules =
         [ { Variable = "S"
             Generate =
-              [ [ Terminal '0'
+              [ [ Terminal "0"
                   Variable "S"
-                  Terminal '1' ]
+                  Terminal "1" ]
                 [] ] } ]
-      TerminalSet = [ '0'; '1' ] }
+      TerminalSet = toTerminalList "01"}
 
 let ZeroOnePDA =
     {
@@ -21,13 +20,13 @@ let ZeroOnePDA =
       StartState = "q1"
       AcceptStates = [ "q1"; "q4" ]
       States = [ "q1"; "q2"; "q3"; "q4" ]
-      InputSet = [ '0'; '1' ]
+      InputSet = [ "0"; "1" ]
       Rules =
-        [ (("q1", CharEpsilon, Epsilon), ("q2", Empty))
-          (("q2", '0', Epsilon), ("q2", Terminal '0'))
-          (("q2", '1', Terminal '0'), ("q3", Epsilon))
-          (("q3", '1', Terminal '0'), ("q3", Epsilon))
-          (("q3", CharEpsilon, Empty), ("q4", Epsilon)) ] }
+        [ (("q1", TerminalEpsilon, Epsilon), ("q2", Empty))
+          (("q2", "0", Epsilon), ("q2", Terminal "0"))
+          (("q2", "1", Terminal "0"), ("q3", Epsilon))
+          (("q3", "1", Terminal "0"), ("q3", Epsilon))
+          (("q3", TerminalEpsilon, Empty), ("q4", Epsilon)) ] }
 
 let TryZeroOne () =
     PDA.visualizePda ZeroOnePDA "ZeroOnePDA"
@@ -51,12 +50,12 @@ let G6 =
               [ [ Variable "A"
                   Variable "S"
                   Variable "A" ]
-                [ Terminal 'a'; Variable "B" ] ] }
+                [ Terminal "a"; Variable "B" ] ] }
           { Variable = "A"
             Generate = [ [ Variable "B" ]; [ Variable "S" ] ] }
           { Variable = "B"
-            Generate = [ [ Epsilon ]; [ Terminal 'b' ] ] } ]
-      TerminalSet = [ 'a'; 'b' ] }
+            Generate = [ [ Epsilon ]; [ Terminal "b" ] ] } ]
+      TerminalSet = toTerminalList "ab" }
 
 /// S -> aTb | b
 /// T -> Ta | e
@@ -65,15 +64,15 @@ let G7 =
       Rules =
         [ { Variable = "S"
             Generate =
-              [ [ Terminal 'a'
+              [ [ Terminal "a"
                   Variable "T"
-                  Terminal 'b' ]
-                [ Terminal 'b' ] ] }
+                  Terminal "b" ]
+                [ Terminal "b" ] ] }
           { Variable = "T"
             Generate =
               [ [ Epsilon ]
-                [ Variable "T"; Terminal 'a' ] ] } ]
-      TerminalSet = [ 'a'; 'b' ] }
+                [ Variable "T"; Terminal "a" ] ] } ]
+      TerminalSet = toTerminalList "ab" }
 
 let Calculate =
     { Start = "Expr"
@@ -82,25 +81,26 @@ let Calculate =
             Generate =
               [ [ Variable "Term" ]
                 [ Variable "Expr"
-                  Terminal '+'
+                  Terminal "+"
                   Variable "Term" ] ] }
           { Variable = "Term"
             Generate =
               [ [ Variable "Factor" ]
                 [ Variable "Term"
-                  Terminal '*'
+                  Terminal "*"
                   Variable "Factor" ] ] }
           { Variable = "Factor"
             Generate =
               [ [ Variable "Digit" ]
-                [ Terminal '('
+                [ Terminal "("
                   Variable "Expr"
-                  Terminal ')' ] ] }
+                  Terminal ")" ] ] }
           { Variable = "Digit"
             Generate =
-              (Seq.toList "0123456789")
-              |> List.map (fun c -> [ Terminal c ]) } ]
-      TerminalSet = Seq.toList "+-*/0123456789" }
+              (Seq.map
+                 (fun c -> [ Terminal (c.ToString()) ]) "0123456789")
+              |> Seq.toList } ]
+      TerminalSet = toTerminalList "+-*/0123456789" }
 
 let SimpleCalculate =
     { Start = "E"
@@ -109,15 +109,15 @@ let SimpleCalculate =
             Generate =
               [ [ Variable "T" ]
                 [ Variable "E"
-                  Terminal '+'
+                  Terminal "+"
                   Variable "T" ] ] }
           { Variable = "T"
             Generate =
-              [ [ Terminal 'a' ]
+              [ [ Terminal "a" ]
                 [ Variable "T"
-                  Terminal '*'
-                  Terminal 'a' ] ] } ]
-      TerminalSet = Seq.toList "a*+" }
+                  Terminal "*"
+                  Terminal "a" ] ] } ]
+      TerminalSet = toTerminalList "ab" }
 
 
 let TryG7 () =
@@ -134,11 +134,11 @@ let TryCalculate () =
     // TryCFG Calculate "9*5+2"
     // TryCFG Calculate "9*(5+2)"
     PDA.visualizePda (generatePDAFromCFG Calculate) "Calculate"
-    VisualizeDK Calculate "CalculateDK"
+    DK.VisualizeDK Calculate "CalculateDK"
 
 let VisualizeSimpleCalculate () =
     PDA.visualizePda (generatePDAFromCFG SimpleCalculate) "SimpleCalculate"
-    VisualizeDK SimpleCalculate "SimpleCalculateDK"
+    DK.VisualizeDK SimpleCalculate "SimpleCalculateDK"
 
 let example () =
     let mutable outer = 1
@@ -160,41 +160,60 @@ let example () =
 // TryCalculate()
 // TryCalculate()
 
+let TestEliminateLeftFactor() =
+  let example = {
+      Variable = "Z"
+      Generate =
+      [
+        [ Terminal "b"; Terminal "c"; Variable "Y" ]
+        [ Terminal "a"; Terminal "b"; Variable "X" ]
+        [ Terminal "a"; Terminal "c"; Variable "Y" ]
+        [ Terminal "a"; Terminal "b"; Variable "X"; Variable "Y" ]
+      ]}
+  CFG.EliminateLeftFactor example |> printfn "%A"
+
 let TestEliminateLeftRecursion() =
     let LeftRecursionMostSimple =
         { Start = "A"
           Rules =
             [ { Variable = "A"
                 Generate =
-                  [ [ Variable "A"; Terminal 'a' ]
-                    [ Terminal 'b' ] ] } ]
-          TerminalSet = [ 'a'; 'b' ] }
+                  [ [ Variable "A"; Terminal "a" ]
+                    [ Terminal "b" ] ] } ]
+          TerminalSet = toTerminalList "ab" }
         
     let InDirectLeftRecursion =
         { Start = "S"
           Rules =
             [ { Variable = "S"
                 Generate =
-                  [ [ Variable "A"; Terminal 'a' ]
-                    [ Terminal 'b' ] ]}
+                  [ [ Variable "A"; Terminal "a" ]
+                    [ Terminal "b" ] ]}
               { Variable = "A"
                 Generate =
-                  [ [ Variable "A"; Terminal 's' ]
-                    [ Variable "S"; Terminal 'd' ]
-                    [ Terminal 'b' ]
+                  [ [ Variable "A"; Terminal "s" ]
+                    [ Variable "S"; Terminal "d" ]
+                    [ Terminal "b" ]
                     [ Epsilon ] ] } ]
-          TerminalSet = [ 'a'; 'b' ] }
+          TerminalSet = toTerminalList "ab" }
       
 
-    EliminateLeftRecursiveProduction LeftRecursionMostSimple.Rules.Head
+    CFG.EliminateLeftRecursiveProduction LeftRecursionMostSimple.Rules.Head
     |> printfn "%A"
 
 // TestEliminateLeftRecursion
     
 let TestCfgParser() =
     test pDerivation "Value \"Example\""
-    test pProduction "Value| \"Example\""
+    test pProduction "Value | \"Example\""
     test pGenerate @"Exp = Or" 
     test pGenerate @"Or 
-  	= Concat ""|"" Concat
-  	| Concat"
+  	= Concat ""|"" Concat -- haha
+  	| Concat -- heihei"
+    test pOhm @"
+Regex {
+   Exp = Or
+   Or 
+  	= Concat ""|"" Concat -- whynot
+  	| Concat -- try anoter
+}"

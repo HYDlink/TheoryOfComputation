@@ -9,6 +9,7 @@
         <Compile Include="ContextFreeGrammar.fs" />
         <Compile Include="PushDownAutomata.fs" />
         <Compile Include="CFGParser.fs" />
+        <Compile Include="Parser.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

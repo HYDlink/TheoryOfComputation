@@ -8,7 +8,8 @@ open DotNetGraph.Node
 open Utilities
 open TheoryOfComputation.ContextFreeGrammar
 
-type PDARule<'State, 'Input, 'StackElem> = ('State * 'Input * 'StackElem) * ('State * 'StackElem)
+type PDARule<'State, 'Input, 'StackElem> =
+    ('State * 'Input * 'StackElem) * ('State * 'StackElem)
 
 type PDA<'State, 'Input, 'StackElem> =
     {
@@ -20,8 +21,8 @@ type PDA<'State, 'Input, 'StackElem> =
       Rules: PDARule<'State, 'Input, 'StackElem> list }
 
 module PDA =
-    let run (pda: PDA<'State, char, CFGNode>) (input: string) =
-        let rec innerRun state (curInput: char list) (stack: CFGNode list) =
+    let run (pda: PDA<'State, Terminal, CFGNode>) (input: string) =
+        let rec innerRun state (curInput: Terminal list) (stack: CFGNode list) =
             if stack.Head = Empty then
                 curInput.IsEmpty
             elif curInput.IsEmpty then
@@ -32,7 +33,7 @@ module PDA =
                     List.filter (fun ((s, i, st), _) -> s = state) pda.Rules
 
                 let epsilonRules =
-                    List.filter (fun ((_, i, st), _) -> st = Epsilon && i = CharEpsilon) currentStateRules
+                    List.filter (fun ((_, i, st), _) -> st = Epsilon && i = TerminalEpsilon) currentStateRules
 
                 let matchRules =
                     List.filter (fun ((_, i, st), _) -> st = stack.Head && i = curInput.Head) currentStateRules
@@ -42,7 +43,7 @@ module PDA =
                     assert (cur = state)
 
                     let nextInput =
-                        if i = CharEpsilon then
+                        if i = TerminalEpsilon then
                             curInput
                         else
                             curInput.Tail
@@ -64,21 +65,21 @@ module PDA =
                 List.map runRule currentStateRules
                 |> List.reduce (||)
 
-        innerRun pda.StartState (Seq.toList input) []
+        innerRun pda.StartState (toTerminalList input) []
 
-    let RuleToString (rule: (('State * char * CFGNode) * ('State * CFGNode))) =
+    let RuleToString (rule: PDARule<'State, Terminal, CFGNode>) =
         let ((_, curInput, stack), (_, nextStack)) =
             rule
 
         let inputStr =
-            if curInput = CharEpsilon then
+            if curInput = TerminalEpsilon then
                 "ε"
             else
                 curInput.ToString()
 
         $"{inputStr}, {CFGNode.ToString stack} → {CFGNode.ToString nextStack}"
 
-    let exportGraph (pda: PDA<string, char, CFGNode>) name =
+    let exportGraph (pda: PDA<string, Terminal, CFGNode>) name =
         let graph = DotGraph(name, true)
 
         let state2node state =
@@ -93,7 +94,7 @@ module PDA =
         let groupedRules =
             List.groupBy (fun ((q, _, _), (n, _)) -> (q, n)) pda.Rules
 
-        let rules2edge (ruleGroup: ((string * string) * ((string * char * CFGNode) * (string * CFGNode)) list)) =
+        let rules2edge (ruleGroup: ((string * string) * ((string * Terminal * CFGNode) * (string * CFGNode)) list)) =
             let ((start, nextState), _) = ruleGroup
 
             let combinedRuleStr =
@@ -122,14 +123,14 @@ module PDA =
         Graph.compileGraphToSvg graph name "svg"
 
 
-let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
+let generatePDAFromCFG (cfg: CFG) : PDA<string, Terminal, CFGNode> =
     let START_STATE = "Start"
     let PREPARE_STATE = "Prepare"
     let LOOP_STATE = "Loop"
     let END_STATE = "End"
 
-    let genEmptyRule from to_ nextStackElem : PDARule<string, char, CFGNode> =
-        ((from, CharEpsilon, Epsilon), ((to_), nextStackElem))
+    let genEmptyRule from to_ nextStackElem : PDARule<string, Terminal, CFGNode> =
+        ((from, TerminalEpsilon, Epsilon), ((to_), nextStackElem))
 
     let genRule (cfgRule: CFGRule) =
         let { Variable = varName; Generate = rules } =
@@ -139,7 +140,7 @@ let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
             (rule: CFGNode list)
             (headName: string)
             (variable: string)
-            : PDARule<string, char, CFGNode> list * string list =
+            : PDARule<string, Terminal, CFGNode> list * string list =
             // aBc -> ((q1, e, e), (q2, c)) -> ((q2, e, e), (q3, B)) -> ((q3, e, e), (Loop, a))
             let Length = rule.Length
 
@@ -158,10 +159,10 @@ let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
 
                 let revRule = List.rev rule
                 let initRule =
-                    ((LOOP_STATE, CharEpsilon, Variable variable), ((stateName 1), revRule.Head))
+                    ((LOOP_STATE, TerminalEpsilon, Variable variable), ((stateName 1), revRule.Head))
                 
                 let cfgRuleToPdaRule i r =
-                    (((stateName (i + 1)), CharEpsilon, Epsilon), ((stateName (i + 2)), r))
+                    (((stateName (i + 1)), TerminalEpsilon, Epsilon), ((stateName (i + 2)), r))
                 let pdaRules =
                     List.skip 1 revRule
                     |> List.mapi cfgRuleToPdaRule
@@ -175,7 +176,7 @@ let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
         List.map genRule cfg.Rules
         |> List.fold (fun (a, b) (c, d) -> (a @ c, b @ d)) ([], [])
 
-    let fromCfgTerminalRules: PDARule<string, char, CFGNode> list =
+    let fromCfgTerminalRules: PDARule<string, Terminal, CFGNode> list =
         let fromTerminal t =
             ((LOOP_STATE, t, Terminal t), (LOOP_STATE, Epsilon))
 
@@ -184,7 +185,7 @@ let generatePDAFromCFG (cfg: CFG) : PDA<string, char, CFGNode> =
     let defaultRules =
         [ genEmptyRule START_STATE PREPARE_STATE Empty
           genEmptyRule PREPARE_STATE LOOP_STATE (Variable cfg.Start)
-          ((LOOP_STATE, CharEpsilon, Empty), (END_STATE, Epsilon)) ]
+          ((LOOP_STATE, TerminalEpsilon, Empty), (END_STATE, Epsilon)) ]
 
     { StartState = START_STATE
       AcceptStates = [ END_STATE ]
