@@ -16,10 +16,10 @@ let evenOddDfa: DFA<string, char> =
       //           | _ -> None
       //       | _ -> None)
       Rules =
-          RuleList [ ("Even", '0', "Even")
-                     ("Even", '1', "Odd")
-                     ("Odd", '0', "Odd")
-                     ("Odd", '1', "Even") ]
+          RuleList [ { From = "Even"; By = '0'; To="Even" }
+                     { From = "Even"; By = '1'; To="Odd" }
+                     { From = "Odd"; By = '0'; To="Odd" }
+                     { From = "Odd"; By = '1'; To="Even" } ]
       StartState = "Even"
       AcceptStates = [ "Even"; "Odd" ] }
 
@@ -40,16 +40,16 @@ let M4: DFA<string, char> =
     { States = [ "s"; "q1"; "q2"; "r1"; "r2" ]
       InputSets = [ 'a'; 'b' ]
       Rules =
-        RuleList [ ("s", 'a', "q1")
-                   ("s", 'b', "r1")
-                   ("q1", 'a', "q1")
-                   ("q1", 'b', "q2")
-                   ("q2", 'a', "q1")
-                   ("q2", 'b', "q2")
-                   ("r1", 'b', "r1")
-                   ("r1", 'a', "r2")
-                   ("r2", 'b', "r1")
-                   ("r2", 'a', "r2") ]
+        RuleList [ { From = "s"; By = 'a'; To="q1" }
+                   { From = "s"; By = 'b'; To="r1" }
+                   { From = "q1"; By = 'a'; To="q1" }
+                   { From = "q1"; By = 'b'; To="q2" }
+                   { From = "q2"; By = 'a'; To="q1" }
+                   { From = "q2"; By = 'b'; To="q2" }
+                   { From = "r1"; By = 'b'; To="r1" }
+                   { From = "r1"; By = 'a'; To="r2" }
+                   { From = "r2"; By = 'b'; To="r1" }
+                   { From = "r2"; By = 'a'; To="r2" } ]
       StartState = "s"
       AcceptStates = [ "q1"; "r1" ] }
 
@@ -106,13 +106,13 @@ let ZeroOneLastThirdMustOneNFA =
     { States = [ "q1"; "q2"; "q3"; "q4" ]
       InputSets = [ '0'; '1' ]
       Rules =
-        RuleList [ ("q1", '0', "q1")
-                   ("q1", '1', "q1")
-                   ("q1", '1', "q2")
-                   ("q2", '0', "q3")
-                   ("q2", '1', "q3")
-                   ("q3", '0', "q4")
-                   ("q3", '1', "q4") ]
+        RuleList [ { From = "q1"; By = '0'; To="q1" }
+                   { From = "q1"; By = '1'; To="q1" }
+                   { From = "q1"; By = '1'; To="q2" }
+                   { From = "q2"; By = '0'; To="q3" }
+                   { From = "q2"; By = '1'; To="q3" }
+                   { From = "q3"; By = '0'; To="q4" }
+                   { From = "q3"; By = '1'; To="q4" } ]
       StartState = "q1"
       AcceptStates = [ "q4" ] }
 
@@ -120,13 +120,13 @@ let EvenOrThreeZeroNFA =
     { States = [ "s"; "e1"; "e2"; "t1"; "t2"; "t3" ]
       InputSets = [ '0' ]
       Rules =
-        RuleList [ ("s", Epsilon, "e1")
-                   ("s", Epsilon, "t1")
-                   ("e1", '0', "e2")
-                   ("e2", '0', "e1")
-                   ("t1", '0', "t2")
-                   ("t2", '0', "t3")
-                   ("t3", '0', "t1") ]
+        RuleList [ { From = "s"; By = Epsilon; To="e1" }
+                   { From = "s"; By = Epsilon; To="t1" }
+                   { From = "e1"; By = '0'; To="e2" }
+                   { From = "e2"; By = '0'; To="e1" }
+                   { From = "t1"; By = '0'; To="t2" }
+                   { From = "t2"; By = '0'; To="t3" }
+                   { From = "t3"; By = '0'; To="t1" } ]
       StartState = "s"
       AcceptStates = [ "e1"; "t1" ] }
 
@@ -134,15 +134,15 @@ let TryNFA nfa input =
     let seqInput = Seq.toList input
     runNFA nfa seqInput |> printfn "%A"
 
-let TestSvg =
+let TestSvg() =
     // testM4Equality ()
     
     // exportToSvg evenOddDfa "EvenOdd"
     // Console.WriteLine()
     // exportToSvg M4 "M4"
     TryNFA ZeroOneLastThirdMustOneNFA "001011"
-    exportToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
-    exportToSvg (NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
+    exportCharToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
+    exportCharToSvg (NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
     
     // next combine NFA
     
@@ -150,11 +150,13 @@ let TestSvg =
     // TryNFA EvenOrThreeZeroNFA "000"
     // TryNFA EvenOrThreeZeroNFA "00000"
     // TryNFA EvenOrThreeZeroNFA "000000"
-    exportToSvg EvenOrThreeZeroNFA "EvenOrThree0"
-    exportToSvg (NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
+    exportCharToSvg EvenOrThreeZeroNFA "EvenOrThree0"
+    exportCharToSvg (NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
 
     // FA.NfaToDfa EvenOrThreeZeroNFA |> printfn "%A"
     
     // let strList = new List<string list>()
     // strList.Add(["e1"; "t1"])
     // strList.Contains(["e1"; "t1"]) |> printfn "%A"
+
+TestSvg()

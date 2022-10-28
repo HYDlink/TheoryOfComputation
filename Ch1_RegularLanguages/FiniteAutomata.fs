@@ -1,10 +1,8 @@
 ﻿module TheoryOfComputation.FiniteAutomata
 
 
-open System
 open System.Collections.Generic
 open System.Diagnostics
-open System.IO
 open System.Linq
 open DotNetGraph
 open DotNetGraph.Attributes
@@ -13,8 +11,29 @@ open DotNetGraph.Edge
 open DotNetGraph.Node
 open Utilities
 
+
+[<Literal>]
+let Epsilon: char = '\000'
+
 type RuleFun<'State, 'Input> = 'State -> 'Input -> 'State option
-type Transition<'State, 'Input> = 'State * 'Input * 'State
+
+type Transition<'State, 'Input> =
+    { From: 'State
+      By: 'Input
+      To: 'State }
+
+module Transition =
+    let IsEpsilon t = t.By = Epsilon
+    let From t = t.From
+    let By t = t.By
+    let To t = t.To
+    let FromTo (from:'a) (next: 'a): Transition<'a, char> =
+              {
+                From = from
+                By = Epsilon
+                To = next }
+
+// type Transition<'State, 'Input> = 'State * 'Input * 'State
 type RuleList<'State, 'Input> = Transition<'State, 'Input> list
 
 type RuleSet<'State, 'Input> =
@@ -42,17 +61,14 @@ module StateParam =
         | State se -> se = s
         | StateList l -> l.Contains s
 
-[<Literal>]
-let Epsilon: char = '\000'
-
 
 let isDFA dfa =
     let FiniteAutomataType b = if b = true then DFA else NFA
 
     match dfa.Rules with
     | RuleList list ->
-        List.exists (fun (_, i, _) -> i = Epsilon) list
-        || List.distinctBy (fun (s, i, r) -> (s, i)) list
+        List.exists (fun i -> i.By = Epsilon) list
+        || List.distinctBy (fun { From = s; By = i } -> (s, i)) list
            |> List.length
            |> (=) list.Length
     // |> FiniteAutomataType
@@ -65,13 +81,13 @@ let isDFA dfa =
 /// <param name="exceptStates">Should contain s</param>
 let rec getRule (li: RuleList<'S, char>) (innerState: 'S) (exceptStates: 'S list) : RuleList<'S, char> =
     let matchedRules =
-        List.filter (fun (s, i, _) -> innerState = s) li
+        List.filter (fun t -> innerState = t.From) li
 
     let epsilonRules =
-        List.filter (fun (_, i, _) -> i = Epsilon) matchedRules
+        List.filter Transition.IsEpsilon matchedRules
 
     let extendStates: 'S list =
-        List.map (fun (_, _, r) -> r) epsilonRules
+        List.map Transition.To epsilonRules
         |> List.except exceptStates
 
     let validRules =
@@ -93,12 +109,12 @@ let runDfaRule rule state input =
         let rule =
             List.tryFind
                 (fun item ->
-                    let (s, i, _) = item
+                    let { From = s; By = i } = item
                     s = state && i = input)
                 l
 
         match rule with
-        | Some (_, _, r) -> Some r
+        | Some t -> Transition.To t |> Some
         | None -> None
 
 let rec runDfaAt (dfa: DFA<'State, 'Input>) (curState: 'State) (input: 'Input list) : 'State option =
@@ -129,8 +145,8 @@ let runNfaRule rule (state) input =
             |> List.concat
         | State s -> getRule li s [ s ]
 
-    List.filter (fun (_, i, _) -> i = input) rules
-    |> List.map (fun (_, i, r) -> r)
+    List.filter (fun i -> i.By = input) rules
+    |> List.map Transition.To
 
 
 let rec runNfaAt (dfa: DFA<'State, 'Input>) (curState: StateParam<'State>) (input: 'Input list) : 'State option =
@@ -165,62 +181,91 @@ let rec runNfaAt (dfa: DFA<'State, 'Input>) (curState: StateParam<'State>) (inpu
 let rec runNFA nfa input =
     runNfaAt nfa (State nfa.StartState) input
 
-let NfaToDfa (nfa:DFA<'S, char>) =
+let NfaToDfa (nfa: DFA<'S, char>) =
     let (RuleList ruleList) = nfa.Rules
+
     let extendState stateList =
-        List.filter (fun (st, i, ns) -> List.contains st stateList && i = Epsilon) ruleList
-        |> List.map (fun (_, _, ns) -> ns)
+        List.filter (fun { From = st; By = i; To = ns } -> List.contains st stateList && i = Epsilon) ruleList
+        |> List.map (fun { From = _; By = _; To = ns } -> ns)
         |> (@) stateList
+
+
     let nextRules stateList =
         // get rules which start state is in stateList
-        // group list with input, get all possible nextState in it, means stateList --input-> nextState List 
-        List.filter (fun (st, _, _) -> List.contains st stateList) ruleList
-        |> List.groupBy (fun (_, i, _) -> i)
+        // group list with input, get all possible nextState in it, means stateList --input-> nextState List
+        List.filter (fun { From = st; By = _; To = _ } -> List.contains st stateList) ruleList
+        |> List.groupBy (fun { From = _; By = i; To = _ } -> i)
         |> List.map (fun (i, rules) ->
-            let nextStates = List.map (fun (_, _, n) -> n) rules
-            (stateList, i, (extendState nextStates)))
-    
+            let nextStates =
+                List.map (fun { From = _; By = _; To = n } -> n) rules
+
+            { From = stateList; By = i; To = (extendState nextStates)})
+
     // if stateList already exists return
     // if List.exists (fun s -> nfa.AcceptStates.Contains s) stateList then addToAccept
     // get nextRules
-    let calcStates = new List<'S list>() 
-    let rec generateStates (stateList: 'S list) : (('S list * char * 'S list) list * 'S list list) =
+    let calcStates = new List<'S list>()
+
+    let rec generateStates (stateList: 'S list) : (Transition<'S list, char> list * (('S list) list)) =
         if calcStates.Contains(stateList) then
             ([], [])
         else
             Trace.WriteLine $"%A{stateList}"
             calcStates.Add(stateList)
-            let isAccept = List.exists (fun s -> nfa.AcceptStates.Contains s) stateList
-            let rules = nextRules stateList
-            let nextStates = List.map (fun (_,_,n) ->n) rules
-            List.map generateStates nextStates
-            |> List.fold (fun (a, b) (c, d) -> (a@c, b@d))
-                   (rules, if isAccept then [stateList] else [])
-        
 
-    let start = extendState [nfa.StartState]
-    let (rules, acceptStateLists) = generateStates start 
-    
+            let isAccept =
+                List.exists (fun s -> nfa.AcceptStates.Contains s) stateList
+
+            let rules = nextRules stateList
+
+            let nextStates =
+                List.map (fun t -> t.To) rules
+
+            List.map generateStates nextStates
+            |> List.fold (fun (a, b) (c, d) -> (a @ c, b @ d)) (rules, (if isAccept then [ stateList ] else []))
+
+
+    let start = extendState [ nfa.StartState ]
+
+    let (rules, acceptStateLists) =
+        generateStates start
+
     { States = Seq.toList calcStates
       InputSets = nfa.InputSets
       Rules = RuleList rules
-      StartState= start
+      StartState = start
       AcceptStates = acceptStateLists }
 
 let normalizeFaState (dfa: DFA<'S, 'I>) =
-    let mapToNewStates = List.mapi (fun i s -> (s, i)) dfa.States
-                        |> Map.ofList
-    let newStartState = mapToNewStates[dfa.StartState]
-    let newAcceptStates = List.map (fun s -> mapToNewStates[s]) dfa.AcceptStates
-    let newStates = Map.toList mapToNewStates |> List.map (fun (k, v) -> v)
+    let mapToNewStates =
+        List.mapi (fun i s -> (s, i)) dfa.States
+        |> Map.ofList
+
+    let newStartState =
+        mapToNewStates[dfa.StartState]
+
+    let newAcceptStates =
+        List.map (fun s -> mapToNewStates[s]) dfa.AcceptStates
+
+    let newStates =
+        Map.toList mapToNewStates
+        |> List.map (fun (k, v) -> v)
+
     let (RuleList rules) = dfa.Rules
-    let newRules = List.map (fun (from, _i, dest) -> (mapToNewStates[from], _i, mapToNewStates[dest])) rules
-    {
-        StartState = newStartState
-        States = newStates
-        InputSets = dfa.InputSets
-        Rules = RuleList newRules
-        AcceptStates = newAcceptStates }
+
+    let newRules =
+        List.map
+            (fun { From = from; By = _i; To = dest } ->
+                { From = mapToNewStates[from]
+                  By = _i
+                  To = mapToNewStates[dest] })
+            rules
+
+    { StartState = newStartState
+      States = newStates
+      InputSets = dfa.InputSets
+      Rules = RuleList newRules
+      AcceptStates = newAcceptStates }
 
 let minimizeDfa (dfa: DFA<'S, 'I>) = //: DFA<'S list, 'I> =
     let SplitState (stateList: 'S list) (otherStateListSets: 'S list list) =
@@ -237,17 +282,19 @@ let minimizeDfa (dfa: DFA<'S, 'I>) = //: DFA<'S list, 'I> =
             |> List.map snd
 
         if stateList.Length = 0 then
-            [stateList]
+            [ stateList ]
         else
             // get first split state
             // for loop with break return
             seq {
                 for input in dfa.InputSets do
                     let split = SplitStateByInput input
+
                     if split.Length > 1 then
                         printfn "Split from %A %A" stateList split
                         yield split
-                yield [stateList]
+
+                yield [ stateList ]
             }
             |> Seq.item 0
 
@@ -268,31 +315,39 @@ let minimizeDfa (dfa: DFA<'S, 'I>) = //: DFA<'S list, 'I> =
             calculatedList <- split
 
         calculatedList
-    
-    let getNewStateFromOld oldState = List.find (List.contains oldState) minimizeStates
-    let newStartState = getNewStateFromOld dfa.StartState
+
+    let getNewStateFromOld oldState =
+        List.find (List.contains oldState) minimizeStates
+
+    let newStartState =
+        getNewStateFromOld dfa.StartState
+
     let newAcceptState = dfa.AcceptStates
     // stateList 是已经最小化的新状态（原来的状态集合的子集）
     // 因为是最小化的, 因此其中任何一个原有状态的规则 都等于现有的规则
     let getRule stateList =
-         if List.isEmpty stateList then
-             []
-         else
-             let (RuleList rules) = dfa.Rules
-             List.where (fun (s, _, _) -> s = stateList[0]) rules
-             |> List.map (fun (_, input, next) ->
-                 let newNextState = getNewStateFromOld next
-                 (stateList, input, newNextState))
-    let newRules = List.map getRule minimizeStates |> List.collect id
+        if List.isEmpty stateList then
+            []
+        else
+            let (RuleList rules) = dfa.Rules
 
-    {
-        States = minimizeStates
-        StartState = newStartState
-        Rules = RuleList newRules
-        InputSets = dfa.InputSets
-        AcceptStates = [dfa.AcceptStates]
-    }
- 
+            List.where (fun { From = s; By = _; To = _ } -> s = stateList[0]) rules
+            |> List.map (fun { From = _; By = input; To = next } ->
+                let newNextState = getNewStateFromOld next
+
+                { From = stateList
+                  By = input
+                  To = newNextState })
+
+    let newRules =
+        List.map getRule minimizeStates |> List.collect id
+
+    { States = minimizeStates
+      StartState = newStartState
+      Rules = RuleList newRules
+      InputSets = dfa.InputSets
+      AcceptStates = [ dfa.AcceptStates ] }
+
 
 let exportGraphWithCustomLabel (dfa: DFA<'S, 'I>) name inputLabeler =
     let graph = DotGraph(name, true)
@@ -312,7 +367,10 @@ let exportGraphWithCustomLabel (dfa: DFA<'S, 'I>) name inputLabeler =
 
     match dfa.Rules with
     | RuleList ruleList ->
-        List.map (fun (s, i, r) -> DotEdge(s.ToString(), r.ToString(), Label = DotLabelAttribute(inputLabeler i))) ruleList
+        List.map
+            (fun { From = s; By = i; To = r } ->
+                DotEdge(s.ToString(), r.ToString(), Label = DotLabelAttribute(inputLabeler i)))
+            ruleList
         |> Enumerable.Cast
         |> graph.Elements.AddRange
     | _ -> failwith "Not support Rule func"
@@ -320,14 +378,24 @@ let exportGraphWithCustomLabel (dfa: DFA<'S, 'I>) name inputLabeler =
     graph
 
 let exportGraph dfa name =
-    let inputLabeler i = if i = Epsilon then "ε" else i.ToString()
+    let inputLabeler i =
+        if i = Epsilon then
+            "ε"
+        else
+            i.ToString()
+
     exportGraphWithCustomLabel dfa name inputLabeler
 
 let exportGeneralGraph dfa name =
-    let stringer i = i.ToString() 
-    exportGraphWithCustomLabel dfa name stringer 
+    let stringer i = i.ToString()
+    exportGraphWithCustomLabel dfa name stringer
     
 let exportToSvg dfa name =
     let graph = exportGeneralGraph dfa name
+    let compiled = DotCompiler(graph).Compile()
+    Graph.exportDotToSvg compiled name "svg"
+
+let exportCharToSvg dfa name =
+    let graph = exportGraph dfa name
     let compiled = DotCompiler(graph).Compile()
     Graph.exportDotToSvg compiled name "svg"

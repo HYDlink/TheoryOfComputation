@@ -9,6 +9,10 @@
     <ItemGroup>
         <Compile Include="FiniteAutomata.fs" />
         <Compile Include="RegularLanguage.fs" />
+        <Compile Include="NfaGraph.fs" />
+        <Compile Include="RegularToNfaGraph.fs" />
+        <Compile Include="DfaToRegular.fs" />
+        <Compile Include="RegularToNfa.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
