@@ -8,6 +8,7 @@
 
     <ItemGroup>
         <Compile Include="FiniteAutomata.fs" />
+        <Compile Include="RegularLanguage.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

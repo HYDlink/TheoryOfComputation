@@ -134,26 +134,27 @@ let TryNFA nfa input =
     let seqInput = Seq.toList input
     runNFA nfa seqInput |> printfn "%A"
 
-// testM4Equality ()
+let TestSvg =
+    // testM4Equality ()
+    
+    // exportToSvg evenOddDfa "EvenOdd"
+    // Console.WriteLine()
+    // exportToSvg M4 "M4"
+    TryNFA ZeroOneLastThirdMustOneNFA "001011"
+    exportToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
+    exportToSvg (NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
+    
+    // next combine NFA
+    
+    // TryNFA EvenOrThreeZeroNFA "00"
+    // TryNFA EvenOrThreeZeroNFA "000"
+    // TryNFA EvenOrThreeZeroNFA "00000"
+    // TryNFA EvenOrThreeZeroNFA "000000"
+    exportToSvg EvenOrThreeZeroNFA "EvenOrThree0"
+    exportToSvg (NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
 
-// exportToSvg evenOddDfa "EvenOdd"
-// Console.WriteLine()
-// exportToSvg M4 "M4"
-TryNFA ZeroOneLastThirdMustOneNFA "001011"
-exportToSvg ZeroOneLastThirdMustOneNFA "ZeroOne"
-exportToSvg (NfaToDfa ZeroOneLastThirdMustOneNFA) "ZeroOneDFA"
-
-// next combine NFA
-
-// TryNFA EvenOrThreeZeroNFA "00"
-// TryNFA EvenOrThreeZeroNFA "000"
-// TryNFA EvenOrThreeZeroNFA "00000"
-// TryNFA EvenOrThreeZeroNFA "000000"
-exportToSvg EvenOrThreeZeroNFA "EvenOrThree0"
-exportToSvg (NfaToDfa EvenOrThreeZeroNFA) "EvenOrThree0DFA"
-
-// FA.NfaToDfa EvenOrThreeZeroNFA |> printfn "%A"
-
-// let strList = new List<string list>()
-// strList.Add(["e1"; "t1"])
-// strList.Contains(["e1"; "t1"]) |> printfn "%A"
+    // FA.NfaToDfa EvenOrThreeZeroNFA |> printfn "%A"
+    
+    // let strList = new List<string list>()
+    // strList.Add(["e1"; "t1"])
+    // strList.Contains(["e1"; "t1"]) |> printfn "%A"
